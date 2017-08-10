@@ -1,4 +1,7 @@
-# ORB-SLAM2
+# ORB-SLAM2 - For Mac
+This fork has been modified to be compatible on Mac systems. With required packages installed via Brew, this works out of the box for me.
+
+# ORB-SLAM2 - Original Text
 **Authors:** [Raul Mur-Artal](http://webdiis.unizar.es/~raulmur/), [Juan D. Tardos](http://webdiis.unizar.es/~jdtardos/), [J. M. M. Montiel](http://webdiis.unizar.es/~josemari/) and [Dorian Galvez-Lopez](http://doriangalvez.com/) ([DBoW2](https://github.com/dorian3d/DBoW2))
 
 **13 Jan 2017**: OpenCV 3 and Eigen 3.3 are now supported.

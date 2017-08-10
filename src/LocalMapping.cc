@@ -24,6 +24,7 @@
 #include "Optimizer.h"
 
 #include<mutex>
+#include<unistd.h>
 
 namespace ORB_SLAM2
 {
@@ -206,6 +207,7 @@ void LocalMapping::MapPointCulling()
 
 void LocalMapping::CreateNewMapPoints()
 {
+    printf("CreateNewMapPoints\n");
     // Retrieve neighbor keyframes in covisibility graph
     int nn = 10;
     if(mbMonocular)

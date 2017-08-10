@@ -68,14 +68,16 @@ void MapDrawer::DrawMapPoints()
     glBegin(GL_POINTS);
     glColor3f(1.0,0.0,0.0);
 
+    int npoints = 0;
     for(set<MapPoint*>::iterator sit=spRefMPs.begin(), send=spRefMPs.end(); sit!=send; sit++)
     {
         if((*sit)->isBad())
             continue;
         cv::Mat pos = (*sit)->GetWorldPos();
         glVertex3f(pos.at<float>(0),pos.at<float>(1),pos.at<float>(2));
-
+        npoints++;
     }
+    // printf("N points: %d\n", npoints);
 
     glEnd();
 }
