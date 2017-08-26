@@ -207,7 +207,6 @@ void LocalMapping::MapPointCulling()
 
 void LocalMapping::CreateNewMapPoints()
 {
-    printf("CreateNewMapPoints\n");
     // Retrieve neighbor keyframes in covisibility graph
     int nn = 10;
     if(mbMonocular)

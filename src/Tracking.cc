@@ -587,7 +587,6 @@ void Tracking::MonocularInitialization()
     }
     else
     {
-        printf("Try init..");
         // Try to initialize
         if((int)mCurrentFrame.mvKeys.size()<=100)
         {
@@ -598,7 +597,6 @@ void Tracking::MonocularInitialization()
         }
 
         // Find correspondences
-        printf("Try match..");
         ORBmatcher matcher(0.9,true);
         int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
 
@@ -614,10 +612,8 @@ void Tracking::MonocularInitialization()
         cv::Mat tcw; // Current Camera Translation
         vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
 
-        printf("Try tri..\n");
         if(mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
         {
-            printf("nmatches0: %d", nmatches);
             for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
             {
                 if(mvIniMatches[i]>=0 && !vbTriangulated[i])
@@ -626,7 +622,6 @@ void Tracking::MonocularInitialization()
                     nmatches--;
                 }
             }
-            printf(" .. nmatches1: %d\n", nmatches);
 
             // Set Frame Poses
             mInitialFrame.SetPose(cv::Mat::eye(4,4,CV_32F));
@@ -636,8 +631,6 @@ void Tracking::MonocularInitialization()
             mCurrentFrame.SetPose(Tcw);
 
             CreateInitialMapMonocular();
-        } else {
-            printf("\tFailed to init..\n");
         }
     }
 }
