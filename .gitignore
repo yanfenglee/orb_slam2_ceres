@@ -23,3 +23,5 @@ build/
 lib/
 .*
 !.gitignore
+cmake-build-debug
+cmake-build-release
