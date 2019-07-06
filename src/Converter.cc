@@ -20,6 +20,8 @@
 
 
 #include "Converter.h"
+#include <opencv2/core/eigen.hpp>
+
 
 namespace ORB_SLAM2
 {
@@ -146,6 +148,16 @@ std::vector<float> Converter::toQuaternion(const cv::Mat &M)
     v[3] = q.w();
 
     return v;
+}
+
+void Converter::toQuaternion(const cv::Mat &M, Eigen::Quaterniond& q) {
+    Eigen::Matrix<double,3,3> eigMat = toMatrix3d(M);
+    q = Eigen::Quaterniond(eigMat);
+}
+
+void Converter::toCvMat(const Eigen::Quaterniond& q, cv::Mat &M){
+    Eigen::Matrix3d matrix = q.matrix();
+    cv::eigen2cv(matrix, M);
 }
 
 } //namespace ORB_SLAM
