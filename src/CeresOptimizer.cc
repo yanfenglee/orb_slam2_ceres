@@ -52,73 +52,73 @@ namespace ORB_SLAM2 {
     void CeresOptimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
                                           int nIterations, bool *pbStopFlag, const unsigned long nLoopKF,
                                           const bool bRobust) {
-        ceres::Problem problem;
     }
 
     int CeresOptimizer::PoseOptimization(Frame *pFrame) {
+#if 0
 
-        //ceres::Problem problem;
-//
-//        ceres::LossFunction *loss_function = NULL;
-//
-//        ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
-//
-//
-//        Eigen::Quaterniond q;
-//        Eigen::Vector3d t;
-//
-//        cv::Mat rot = pFrame->mTcw.colRange(0, 3).rowRange(0, 3);
-//        cv::Mat trans = pFrame->mTcw.rowRange(0, 3).col(3);
-//        Converter::toQuaternion(rot, q);
-//        cv::cv2eigen(trans, t);
-//
-//        std::cout << "------before optimize----------------" << std::endl;
-//        std::cout << t << std::endl;
-//
-//        int c = 0;
-//
-//        {
-//            unique_lock<mutex> lock(MapPoint::mGlobalMutex);
-//
-//            for (int i = 0; i < pFrame->N; i++) {
-//                MapPoint *pMP = pFrame->mvpMapPoints[i];
-//                if (pMP && !pFrame->mvbOutlier[i]) {
-//
-//                    c++;
-//
-//                    Eigen::Vector3d p3d;
-//                    Eigen::Vector2d p2d;
-//                    cv::cv2eigen(pMP->GetWorldPos(), p3d);
-//
-//                    cv::KeyPoint &kp = pFrame->mvKeysUn[i];
-//                    p2d(0) = (kp.pt.x - pFrame->cx) * pFrame->invfx;
-//                    p2d(1) = (kp.pt.y - pFrame->cy) * pFrame->invfy;
-//
-//                    ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
-//
-//                    problem.AddResidualBlock(cost_function, loss_function, q.coeffs().data(), t.data());
-//
-//                    problem.SetParameterization(q.coeffs().data(), qlp);
-//                }
-//            }
-//        }
-//
-//
-//        ceres::Solver::Options options;
-//        options.max_num_iterations = 200;
-//        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-//
-//        ceres::Solver::Summary summary;
-//        ceres::Solve(options, &problem, &summary);
-//
-//        std::cout << "---------after-------------" << std::endl;
-//        std::cout << t << std::endl;
-//
-//        std::cout << summary.FullReport() << '\n';
-//
-//
-//        return c;
+        ceres::Problem problem;
 
+        ceres::LossFunction *loss_function = NULL;
+
+        ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
+
+
+        Eigen::Quaterniond q;
+        Eigen::Vector3d t;
+
+        cv::Mat rot = pFrame->mTcw.colRange(0, 3).rowRange(0, 3);
+        cv::Mat trans = pFrame->mTcw.rowRange(0, 3).col(3);
+        Converter::toQuaternion(rot, q);
+        cv::cv2eigen(trans, t);
+
+        std::cout << "------before optimize----------------" << std::endl;
+        std::cout << t << std::endl;
+
+        int c = 0;
+
+        {
+            unique_lock<mutex> lock(MapPoint::mGlobalMutex);
+
+            for (int i = 0; i < pFrame->N; i++) {
+                MapPoint *pMP = pFrame->mvpMapPoints[i];
+                if (pMP && !pFrame->mvbOutlier[i]) {
+
+                    c++;
+
+                    Eigen::Vector3d p3d;
+                    Eigen::Vector2d p2d;
+                    cv::cv2eigen(pMP->GetWorldPos(), p3d);
+
+                    cv::KeyPoint &kp = pFrame->mvKeysUn[i];
+                    p2d(0) = (kp.pt.x - pFrame->cx) * pFrame->invfx;
+                    p2d(1) = (kp.pt.y - pFrame->cy) * pFrame->invfy;
+
+                    ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
+
+                    problem.AddResidualBlock(cost_function, loss_function, q.coeffs().data(), t.data());
+
+                    problem.SetParameterization(q.coeffs().data(), qlp);
+                }
+            }
+        }
+
+
+        ceres::Solver::Options options;
+        options.max_num_iterations = 200;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+
+        std::cout << "---------after-------------" << std::endl;
+        std::cout << t << std::endl;
+
+        std::cout << summary.FullReport() << '\n';
+
+
+        return c;
+#endif
 
     }
 

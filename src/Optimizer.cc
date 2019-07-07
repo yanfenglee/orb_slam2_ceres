@@ -19,10 +19,14 @@
 */
 
 #include "Optimizer.h"
-#include "CeresOptimizer.h"
-#include "G2Optimizer.h"
 
-//#define USE_CERES
+#define USE_CERES1
+
+#ifdef USE_CERES
+#include "CeresOptimizer.h"
+#else
+#include "G2Optimizer.h"
+#endif
 
 namespace ORB_SLAM2
 {
@@ -30,22 +34,22 @@ namespace ORB_SLAM2
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
-#ifdef USE_CERES
-    CeresOptimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
-#else
-    G2Optimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
-#endif
+//#ifdef USE_CERES
+//    CeresOptimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
+//#else
+//    G2Optimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
+//#endif
 }
 
 
 void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
                                  int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
-#ifdef USE_CERES
-    CeresOptimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
-#else
-    G2Optimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
-#endif
+//#ifdef USE_CERES
+//    CeresOptimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
+//#else
+//    G2Optimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
+//#endif
 }
 
 int Optimizer::PoseOptimization(Frame *pFrame)
@@ -59,11 +63,11 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
 void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap)
 {
-#ifdef USE_CERES
-    CeresOptimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
-#else
-    G2Optimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
-#endif
+//#ifdef USE_CERES
+//    CeresOptimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
+//#else
+//    G2Optimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
+//#endif
 }
 
 
@@ -72,26 +76,27 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
                                        const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                        const map<KeyFrame *, set<KeyFrame *> > &LoopConnections, const bool &bFixScale)
 {
-#ifdef USE_CERES
-    CeresOptimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
-                                       NonCorrectedSim3,
-                                       CorrectedSim3,
-                                       LoopConnections, bFixScale);
-#else
-    G2Optimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
-                                           NonCorrectedSim3,
-                                           CorrectedSim3,
-                                           LoopConnections, bFixScale);
-#endif
+//#ifdef USE_CERES
+//    CeresOptimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
+//                                       NonCorrectedSim3,
+//                                       CorrectedSim3,
+//                                       LoopConnections, bFixScale);
+//#else
+//    G2Optimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
+//                                           NonCorrectedSim3,
+//                                           CorrectedSim3,
+//                                           LoopConnections, bFixScale);
+//#endif
 }
 
 int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1, g2o::Sim3 &g2oS12, const float th2, const bool bFixScale)
 {
 #ifdef USE_CERES
-    CeresOptimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
+    //CeresOptimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
 #else
-    G2Optimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
+    //G2Optimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
 #endif
+    return 0;
 }
 
 
