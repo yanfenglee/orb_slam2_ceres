@@ -60,6 +60,11 @@ namespace ORB_SLAM2 {
     };
      */
 
+    const double fx = 517.306408;
+    const double fy = 516.469215;
+    const double cx = 318.643040;
+    const double cy = 255.313989;
+
 
     class ReprojectionOnlyPoseError {
     public:
@@ -84,8 +89,8 @@ namespace ORB_SLAM2 {
             predicted_p /= predicted_p[2];
 
             // compute residuals
-            residuals[0] = predicted_p(0) - T(m_observed_p(0));
-            residuals[1] = predicted_p(1) - T(m_observed_p(1));
+            residuals[0] = predicted_p(0)*T(fx)+T(cx) - T(m_observed_p(0));
+            residuals[1] = predicted_p(1)*T(fx)+T(cx) - T(m_observed_p(1));
 
             return true;
         }

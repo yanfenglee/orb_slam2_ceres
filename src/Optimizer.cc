@@ -20,7 +20,7 @@
 
 #include "Optimizer.h"
 
-#define USE_CERES1
+#define USE_CERES
 
 #ifdef USE_CERES
 #include "CeresOptimizer.h"

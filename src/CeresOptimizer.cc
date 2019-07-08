@@ -55,13 +55,8 @@ namespace ORB_SLAM2 {
     }
 
     int CeresOptimizer::PoseOptimization(Frame *pFrame) {
-#if 0
+#if 1
 
-        ceres::Problem problem;
-
-        ceres::LossFunction *loss_function = NULL;
-
-        ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
 
 
         Eigen::Quaterniond q;
@@ -77,45 +72,93 @@ namespace ORB_SLAM2 {
 
         int c = 0;
 
-        {
-            unique_lock<mutex> lock(MapPoint::mGlobalMutex);
+        for (int epoch = 0; epoch < 4; epoch++) {
+            ceres::Problem problem;
 
-            for (int i = 0; i < pFrame->N; i++) {
-                MapPoint *pMP = pFrame->mvpMapPoints[i];
-                if (pMP && !pFrame->mvbOutlier[i]) {
+            ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
 
-                    c++;
+            c = 0;
 
-                    Eigen::Vector3d p3d;
-                    Eigen::Vector2d p2d;
-                    cv::cv2eigen(pMP->GetWorldPos(), p3d);
+            {
+                unique_lock<mutex> lock(MapPoint::mGlobalMutex);
 
-                    cv::KeyPoint &kp = pFrame->mvKeysUn[i];
-                    p2d(0) = (kp.pt.x - pFrame->cx) * pFrame->invfx;
-                    p2d(1) = (kp.pt.y - pFrame->cy) * pFrame->invfy;
+                for (int i = 0; i < pFrame->N; i++) {
+                    MapPoint *pMP = pFrame->mvpMapPoints[i];
+                    if (pMP) {
 
-                    ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
+                        pFrame->mvbOutlier[i] = false;
 
-                    problem.AddResidualBlock(cost_function, loss_function, q.coeffs().data(), t.data());
+                        Eigen::Vector3d p3d;
+                        Eigen::Vector2d p2d;
+                        cv::cv2eigen(pMP->GetWorldPos(), p3d);
 
-                    problem.SetParameterization(q.coeffs().data(), qlp);
+                        cv::KeyPoint &kp = pFrame->mvKeysUn[i];
+                        //p2d(0) = (kp.pt.x - pFrame->cx) * pFrame->invfx;
+                        //p2d(1) = (kp.pt.y - pFrame->cy) * pFrame->invfy;
+
+                        p2d(0) = kp.pt.x;
+                        p2d(1) = kp.pt.y;
+
+                        if (epoch >= 1) {
+                            ReprojectionOnlyPoseError err(p3d, p2d);
+                            double residual[2];
+                            err(q.coeffs().data(), t.data(), residual);
+
+                            //residual[0] = residual[0]*pFrame->fx + pFrame->cx;
+                            //residual[1] = residual[1]*pFrame->fy + pFrame->cy;
+
+                            float invSigma2 = pFrame->mvInvLevelSigma2[kp.octave];
+                            Eigen::Matrix2d information = Eigen::Matrix2d::Identity()*invSigma2;
+
+                            Eigen::Vector2d vec(residual[0],residual[0]);
+                            float chi2 = vec.dot(information*vec);
+
+                            if (chi2 > 5.991) {
+                                pFrame->mvbOutlier[i] = true;
+                                continue;
+                            }
+                        }
+
+                        ceres::LossFunction *loss_function = epoch >=2 ? nullptr : new ceres::HuberLoss(1.0);
+
+                        ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
+
+                        problem.AddResidualBlock(cost_function, loss_function, q.coeffs().data(), t.data());
+
+                        problem.SetParameterization(q.coeffs().data(), qlp);
+
+
+                        c++;
+                    }
                 }
             }
+
+            if (c < 3) return 0;
+
+            std::cout << "inliers: " << c << std::endl;
+
+            ceres::Solver::Options options;
+            options.max_num_iterations = 200;
+            options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+
+            std::cout << "---------after-------------" << std::endl;
+            std::cout << t << std::endl;
+
+            std::cout << summary.FullReport() << '\n';
         }
 
+        cv::Mat Rotation,Translate;
+        Converter::toCvMat(q, Rotation);
+        cv::eigen2cv(t, Translate);
 
-        ceres::Solver::Options options;
-        options.max_num_iterations = 200;
-        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        cv::Mat_<double> pose(3,4);
+        Rotation.copyTo(pose.rowRange(0,3).colRange(0,3));
+        Translate.copyTo(pose.rowRange(0,3).col(3));
 
-        ceres::Solver::Summary summary;
-        ceres::Solve(options, &problem, &summary);
-
-        std::cout << "---------after-------------" << std::endl;
-        std::cout << t << std::endl;
-
-        std::cout << summary.FullReport() << '\n';
-
+        pFrame->SetPose(pose);
 
         return c;
 #endif
