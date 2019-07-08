@@ -57,22 +57,22 @@ namespace ORB_SLAM2 {
     int CeresOptimizer::PoseOptimization(Frame *pFrame) {
 #if 1
 
-
-
         Eigen::Quaterniond q;
         Eigen::Vector3d t;
 
         cv::Mat rot = pFrame->mTcw.colRange(0, 3).rowRange(0, 3);
         cv::Mat trans = pFrame->mTcw.rowRange(0, 3).col(3);
-        Converter::toQuaternion(rot, q);
-        cv::cv2eigen(trans, t);
+
 
         std::cout << "------before optimize----------------" << std::endl;
         std::cout << t << std::endl;
 
         int c = 0;
 
-        for (int epoch = 0; epoch < 4; epoch++) {
+        Converter::toQuaternion(rot, q);
+        cv::cv2eigen(trans, t);
+
+        for (int epoch = 0; epoch < 5; epoch++) {
             ceres::Problem problem;
 
             ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
@@ -85,8 +85,6 @@ namespace ORB_SLAM2 {
                 for (int i = 0; i < pFrame->N; i++) {
                     MapPoint *pMP = pFrame->mvpMapPoints[i];
                     if (pMP) {
-
-                        pFrame->mvbOutlier[i] = false;
 
                         Eigen::Vector3d p3d;
                         Eigen::Vector2d p2d;
@@ -117,9 +115,13 @@ namespace ORB_SLAM2 {
                                 pFrame->mvbOutlier[i] = true;
                                 continue;
                             }
+
+                            pFrame->mvbOutlier[i] = false;
+                        } else {
+                            pFrame->mvbOutlier[i] = false;
                         }
 
-                        ceres::LossFunction *loss_function = epoch >=2 ? nullptr : new ceres::HuberLoss(1.0);
+                        ceres::LossFunction *loss_function = epoch >=2 ? nullptr : new ceres::HuberLoss(sqrt(5.991));
 
                         ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
 
@@ -154,7 +156,8 @@ namespace ORB_SLAM2 {
         Converter::toCvMat(q, Rotation);
         cv::eigen2cv(t, Translate);
 
-        cv::Mat_<double> pose(3,4);
+        cv::Mat pose = cv::Mat::eye(4,4,pFrame->mTcw.type());
+
         Rotation.copyTo(pose.rowRange(0,3).colRange(0,3));
         Translate.copyTo(pose.rowRange(0,3).col(3));
 
