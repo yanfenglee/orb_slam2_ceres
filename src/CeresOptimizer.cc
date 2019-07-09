@@ -72,6 +72,7 @@ namespace ORB_SLAM2 {
 
 
         int inliers = 0;
+        int all = 0;
 
 
         // 4 epoch optimize
@@ -117,16 +118,14 @@ namespace ORB_SLAM2 {
 
             ceres::Solver::Options options;
             options.max_num_iterations = 200;
-            options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+            //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
 
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
-//
-//            std::cout << "---------after-------------" << std::endl;
-//            std::cout << t << std::endl;
-//
-//            std::cout << summary.FullReport() << '\n';
 
+            //std::cout << summary.FullReport() << '\n';
+
+            inliers = 0;
             for (int i = 0; i < pFrame->N; i++) {
                 MapPoint *pMP = pFrame->mvpMapPoints[i];
                 if (!pMP) {
@@ -157,6 +156,7 @@ namespace ORB_SLAM2 {
                 pFrame->mvbOutlier[i] = chi2 > 5.991;
 
                 inliers += pFrame->mvbOutlier[i] ? 0 : 1;
+                all += 1;
             }
         }
 
@@ -169,7 +169,15 @@ namespace ORB_SLAM2 {
         Rotation.copyTo(pose.rowRange(0, 3).colRange(0, 3));
         Translate.copyTo(pose.rowRange(0, 3).col(3));
 
+
+        std::cout << "---------before-------------" << std::endl;
+        std::cout << "all: " << all << ", inliers: " << inliers << std::endl;
+        std::cout << pFrame->mTcw << std::endl;
+
         pFrame->SetPose(pose);
+
+        std::cout << "---------after-------------" << std::endl;
+        std::cout << pose << std::endl;
 
         return inliers;
 #endif
