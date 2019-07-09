@@ -240,6 +240,8 @@ void G2Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector
 
 int G2Optimizer::PoseOptimization(Frame *pFrame)
 {
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+
     g2o::SparseOptimizer optimizer;
     g2o::BlockSolver_6_3::LinearSolverType * linearSolver;
 
@@ -447,7 +449,22 @@ int G2Optimizer::PoseOptimization(Frame *pFrame)
     g2o::VertexSE3Expmap* vSE3_recov = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
     g2o::SE3Quat SE3quat_recov = vSE3_recov->estimate();
     cv::Mat pose = Converter::toCvMat(SE3quat_recov);
+
+
+    std::cout << "---------before-------------" << std::endl;
+    std::cout << "all: " << nInitialCorrespondences << ", inliers: " << nInitialCorrespondences-nBad << std::endl;
+    std::cout << pFrame->mTcw << std::endl;
+
     pFrame->SetPose(pose);
+
+
+    std::cout << "---------after-------------" << std::endl;
+    std::cout << pose << std::endl;
+
+    std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+
+    double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+    std::cout << "---------cost: " << ttrack << std::endl;
 
     return nInitialCorrespondences-nBad;
 }

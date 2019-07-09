@@ -91,7 +91,7 @@ namespace ORB_SLAM2 {
 
             // compute residuals
             residuals[0] = predicted_p(0)*T(fx)+T(cx) - T(m_observed_p(0));
-            residuals[1] = predicted_p(1)*T(fx)+T(cx) - T(m_observed_p(1));
+            residuals[1] = predicted_p(1)*T(fy)+T(cy) - T(m_observed_p(1));
 
             return true;
         }

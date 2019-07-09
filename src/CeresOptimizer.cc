@@ -57,6 +57,8 @@ namespace ORB_SLAM2 {
     int CeresOptimizer::PoseOptimization(Frame *pFrame) {
 #if 1
 
+        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+
         unique_lock<mutex> lock(MapPoint::mGlobalMutex);
 
         for (int i = 0; i < pFrame->N; i++) {
@@ -104,7 +106,7 @@ namespace ORB_SLAM2 {
                     p2d(1) = kp.pt.y;
 
 
-                    ceres::LossFunction *loss_function = new ceres::HuberLoss(sqrt(5.991));
+                    ceres::LossFunction *loss_function = epoch > 1 ? nullptr : new ceres::HuberLoss(sqrt(5.991));
 
                     ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
 
@@ -126,6 +128,7 @@ namespace ORB_SLAM2 {
             //std::cout << summary.FullReport() << '\n';
 
             inliers = 0;
+            all = 0;
             for (int i = 0; i < pFrame->N; i++) {
                 MapPoint *pMP = pFrame->mvpMapPoints[i];
                 if (!pMP) {
@@ -170,14 +173,19 @@ namespace ORB_SLAM2 {
         Translate.copyTo(pose.rowRange(0, 3).col(3));
 
 
-        std::cout << "---------before-------------" << std::endl;
-        std::cout << "all: " << all << ", inliers: " << inliers << std::endl;
-        std::cout << pFrame->mTcw << std::endl;
+//        std::cout << "---------before-------------" << std::endl;
+//        std::cout << "all: " << all << ", inliers: " << inliers << std::endl;
+//        std::cout << pFrame->mTcw << std::endl;
 
         pFrame->SetPose(pose);
 
-        std::cout << "---------after-------------" << std::endl;
-        std::cout << pose << std::endl;
+//        std::cout << "---------after-------------" << std::endl;
+//        std::cout << pose << std::endl;
+//
+//        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+//
+//        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+//        std::cout << "---------cost: " << ttrack << std::endl;
 
         return inliers;
 #endif
