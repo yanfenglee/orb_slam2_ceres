@@ -57,7 +57,13 @@ namespace ORB_SLAM2 {
 
         ceres::Problem problem;
         ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
+        ceres::Solver::Options options;
+        options.max_num_iterations = 200;
+        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        ceres::ParameterBlockOrdering* ordering = new ceres::ParameterBlockOrdering;
 
+
+        KeyFrame* startFrame = nullptr;
         // Set KeyFrame vertices
         for (size_t i = 0; i < vpKFs.size(); i++) {
             KeyFrame *pKF = vpKFs[i];
@@ -66,6 +72,10 @@ namespace ORB_SLAM2 {
             // remember max frameid
             if (pKF->mnId > maxKFid)
                 maxKFid = pKF->mnId;
+
+            if (pKF->mnId == 0) {
+                startFrame = pKF;
+            }
         }
 
         //================================================================
@@ -104,19 +114,30 @@ namespace ORB_SLAM2 {
 
                 problem.SetParameterization(pKF->mQ.coeffs().data(), qlp);
 
+                //set marginalize order
+                ordering->AddElementToGroup(pMP->mWPos.data(), 0);
+                ordering->AddElementToGroup(pKF->mQ.coeffs().data(), 1);
+                ordering->AddElementToGroup(pKF->mt.data(), 1);
 
             }
         }
 
 
+        if (startFrame != nullptr) {
+            problem.SetParameterBlockConstant(startFrame->mQ.coeffs().data());
+            problem.SetParameterBlockConstant(startFrame->mt.data());
+        }
+
+
         //================================================================
         //begin optimize
-        ceres::Solver::Options options;
-        options.max_num_iterations = 200;
-        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+
+        options.linear_solver_ordering.reset(ordering);
 
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
+
+        std::cout << summary.FullReport() << '\n';
 
 
         //================================================================
