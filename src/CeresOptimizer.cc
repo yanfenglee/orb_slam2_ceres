@@ -52,6 +52,112 @@ namespace ORB_SLAM2 {
     void CeresOptimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
                                           int nIterations, bool *pbStopFlag, const unsigned long nLoopKF,
                                           const bool bRobust) {
+
+        long unsigned int maxKFid = 0;
+
+        ceres::Problem problem;
+        ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
+
+        // Set KeyFrame vertices
+        for (size_t i = 0; i < vpKFs.size(); i++) {
+            KeyFrame *pKF = vpKFs[i];
+            if (pKF->isBad())
+                continue;
+            // remember max frameid
+            if (pKF->mnId > maxKFid)
+                maxKFid = pKF->mnId;
+        }
+
+        //================================================================
+        // construct ceres optimize redisual function
+
+        for (size_t i = 0; i < vpMP.size(); i++) {
+            MapPoint *pMP = vpMP[i];
+            if (pMP->isBad())
+                continue;
+
+            pMP->mWPos = Converter::toVector3d(pMP->GetWorldPos());
+
+            // TODO set point vertex, set marginalize flag
+
+            const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+
+            //SET EDGES
+            for (map<KeyFrame *, size_t>::const_iterator mit = observations.begin(); mit != observations.end(); mit++) {
+
+                KeyFrame *pKF = mit->first;
+                if (pKF->isBad() || pKF->mnId > maxKFid)
+                    continue;
+
+                pKF->ToEigenPose();
+
+                const cv::KeyPoint &kpUn = pKF->mvKeysUn[mit->second];
+                Eigen::Vector2d p2d(kpUn.pt.x, kpUn.pt.y);
+
+                // calculate reproject error with huber loss
+                ceres::LossFunction *loss_function = new ceres::HuberLoss(sqrt(5.991));
+
+                ceres::CostFunction *cost_function = ReprojectionError::Create(p2d);
+
+                problem.AddResidualBlock(cost_function, loss_function, pKF->mQ.coeffs().data(), pKF->mt.data(),
+                                         pMP->mWPos.data());
+
+                problem.SetParameterization(pKF->mQ.coeffs().data(), qlp);
+
+
+            }
+        }
+
+
+        //================================================================
+        //begin optimize
+        ceres::Solver::Options options;
+        options.max_num_iterations = 200;
+        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+
+
+        //================================================================
+        // Recover optimized data
+
+        //Keyframes
+        for (size_t i = 0; i < vpKFs.size(); i++) {
+            KeyFrame *pKF = vpKFs[i];
+            if (pKF->isBad())
+                continue;
+
+            if (nLoopKF == 0) {
+                pKF->FromEigenPose();
+            } else {
+                pKF->mTcwGBA.create(4, 4, CV_32F);
+                Converter::toCvMat(pKF->mQ, pKF->mt).copyTo(pKF->mTcwGBA);
+                pKF->mnBAGlobalForKF = nLoopKF;
+            }
+        }
+
+        //Points
+        for (size_t i = 0; i < vpMP.size(); i++) {
+
+            MapPoint *pMP = vpMP[i];
+
+            if (pMP->isBad())
+                continue;
+
+            cv::Mat pos = Converter::toCvMat(pMP->mWPos);
+
+            if (nLoopKF == 0) {
+                pMP->SetWorldPos(pos);
+                pMP->UpdateNormalAndDepth();
+            } else {
+                pMP->mPosGBA.create(3, 1, CV_32F);
+                pos.copyTo(pMP->mPosGBA);
+                pMP->mnBAGlobalForKF = nLoopKF;
+            }
+        }
+
+
     }
 
     int CeresOptimizer::PoseOptimization(Frame *pFrame) {

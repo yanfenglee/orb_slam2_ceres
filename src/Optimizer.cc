@@ -34,22 +34,22 @@ namespace ORB_SLAM2
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
-//#ifdef USE_CERES
-//    CeresOptimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
-//#else
-//    G2Optimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
-//#endif
+#ifdef USE_CERES
+    CeresOptimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
+#else
+    G2Optimizer::GlobalBundleAdjustemnt(pMap, nIterations, pbStopFlag, nLoopKF,bRobust);
+#endif
 }
 
 
 void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
                                  int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
-//#ifdef USE_CERES
-//    CeresOptimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
-//#else
-//    G2Optimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
-//#endif
+#ifdef USE_CERES
+    CeresOptimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
+#else
+    G2Optimizer::BundleAdjustment(vpKFs,vpMP,nIterations, pbStopFlag, nLoopKF, bRobust);
+#endif
 }
 
 int Optimizer::PoseOptimization(Frame *pFrame)

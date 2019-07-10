@@ -30,6 +30,7 @@
 #include "KeyFrameDatabase.h"
 
 #include <mutex>
+#include <Eigen3/Eigen/Eigen>
 
 
 namespace ORB_SLAM2
@@ -116,6 +117,9 @@ public:
         return pKF1->mnId<pKF2->mnId;
     }
 
+    void ToEigenPose();
+    void FromEigenPose();
+
 
     // The following variables are accesed from only 1 thread or never change (no mutex needed).
 public:
@@ -187,6 +191,10 @@ public:
     const int mnMaxX;
     const int mnMaxY;
     const cv::Mat mK;
+
+    // variables use for ceres optimize
+    Eigen::Quaterniond mQ;
+    Eigen::Vector3d mt;
 
 
     // The following variables need to be accessed trough a mutex to be thread safe.

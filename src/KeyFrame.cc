@@ -67,6 +67,15 @@ void KeyFrame::ComputeBoW()
     }
 }
 
+
+void KeyFrame::ToEigenPose(){
+    cv::Mat mat = GetPose();
+    Converter::toEigenQT(mat, mQ, mt);
+}
+void KeyFrame::FromEigenPose(){
+    SetPose(Converter::toCvMat(mQ,mt));
+}
+
 void KeyFrame::SetPose(const cv::Mat &Tcw_)
 {
     unique_lock<mutex> lock(mMutexPose);

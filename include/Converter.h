@@ -54,6 +54,8 @@ public:
     //add for ceres optimize
     static void toQuaternion(const cv::Mat &M, Eigen::Quaterniond& q);
     static void toCvMat(const Eigen::Quaterniond& q, cv::Mat &M);
+    static cv::Mat toCvMat(const Eigen::Quaterniond& q, const Eigen::Vector3d& t);
+    static void toEigenQT(const cv::Mat &M, Eigen::Quaterniond& q, Eigen::Vector3d& t);
 };
 
 }// namespace ORB_SLAM

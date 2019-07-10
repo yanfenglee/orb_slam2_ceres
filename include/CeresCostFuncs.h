@@ -10,7 +10,13 @@
 
 namespace ORB_SLAM2 {
 
-    /*
+
+    const double fx = 517.306408;
+    const double fy = 516.469215;
+    const double cx = 318.643040;
+    const double cy = 255.313989;
+
+
     class ReprojectionError {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -20,36 +26,28 @@ namespace ORB_SLAM2 {
         template<typename T>
         bool operator()(const T *const q, const T *const t,
                         const T *const point, T *residuals) const {
-            Eigen::Matrix<T, 3, 1> P;
-            P(0) = T(point[0]);
-            P(1) = T(point[1]);
-            P(2) = T(point[2]);
 
+            Eigen::Map<const Eigen::Quaternion<T>> quat(q);
+            Eigen::Map<const Eigen::Matrix<T,3,1>> P(point);
 
-            // project 3D object point to the image plane
-            Eigen::Matrix<T, 3, 1> predicted_p;
-
-            // Convert quaternion from Eigen convention (x, y, z, w)
-            // to Ceres convention (w, x, y, z)
-            T q_ceres[4] = {q[3], q[0], q[1], q[2]};
-
-            ceres::QuaternionRotatePoint(q_ceres, P, predicted_p);
+            Eigen::Matrix<T, 3, 1> predicted_p = quat * P;
 
             predicted_p[0] += t[0];
             predicted_p[1] += t[1];
             predicted_p[2] += t[2];
 
-            predicted_p /= predicted_p[2];
+            predicted_p[0] /= predicted_p[2];
+            predicted_p[1] /= predicted_p[2];
 
             // compute residuals
-            residuals[0] = predicted_p(0) - T(m_observed_p(0));
-            residuals[1] = predicted_p(1) - T(m_observed_p(1));
+            residuals[0] = predicted_p(0)*T(fx)+T(cx) - T(m_observed_p(0));
+            residuals[1] = predicted_p(1)*T(fy)+T(cy) - T(m_observed_p(1));
 
             return true;
         }
 
         static ceres::CostFunction *Create(Eigen::Vector2d &pt2d) {
-            return (new ceres::AutoDiffCostFunction<ReprojectionError, 2, 10, 3>(
+            return (new ceres::AutoDiffCostFunction<ReprojectionError, 2, 4, 3, 3>(
                     new ReprojectionError(pt2d)));
         }
 
@@ -58,12 +56,6 @@ namespace ORB_SLAM2 {
         // observed 2D point
         Eigen::Vector2d m_observed_p;
     };
-     */
-
-    const double fx = 517.306408;
-    const double fy = 516.469215;
-    const double cx = 318.643040;
-    const double cy = 255.313989;
 
 
     class ReprojectionOnlyPoseError {

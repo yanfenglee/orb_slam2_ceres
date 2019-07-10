@@ -25,8 +25,10 @@
 #include"Frame.h"
 #include"Map.h"
 
+#include <Eigen3/Eigen/Eigen>
 #include<opencv2/core/core.hpp>
 #include<mutex>
+
 
 namespace ORB_SLAM2
 {
@@ -111,6 +113,9 @@ public:
 
 
     static std::mutex mGlobalMutex;
+
+    // for ceres optimize
+    Eigen::Vector3d mWPos;
 
 protected:    
 

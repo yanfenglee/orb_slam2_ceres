@@ -160,4 +160,27 @@ void Converter::toCvMat(const Eigen::Quaterniond& q, cv::Mat &M){
     cv::eigen2cv(matrix, M);
 }
 
+cv::Mat Converter::toCvMat(const Eigen::Quaterniond& q, const Eigen::Vector3d &t) {
+
+    cv::Mat pose = cv::Mat::eye(4, 4, CV_32F);
+
+    cv::Mat Rot, trans;
+    Converter::toCvMat(q, Rot);
+    cv::eigen2cv(t, trans);
+
+    Rot.copyTo(pose.rowRange(0, 3).colRange(0, 3));
+    trans.copyTo(pose.rowRange(0, 3).col(3));
+
+    return pose;
+}
+
+void Converter::toEigenQT(const cv::Mat &M, Eigen::Quaterniond& q, Eigen::Vector3d& t){
+
+    Eigen::Matrix3d mat;
+    cv::cv2eigen(M.rowRange(0,3).colRange(0,3), mat);
+    q = Eigen::Quaterniond(mat);
+
+    cv::cv2eigen(M.rowRange(0,3).col(3), t);
+}
+
 } //namespace ORB_SLAM
