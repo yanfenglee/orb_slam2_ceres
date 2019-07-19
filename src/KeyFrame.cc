@@ -22,6 +22,7 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include<mutex>
+#include <sophus/se3.hpp>
 
 namespace ORB_SLAM2
 {
@@ -74,6 +75,26 @@ void KeyFrame::ToEigenPose(){
 }
 void KeyFrame::FromEigenPose(){
     SetPose(Converter::toCvMat(mQ,mt));
+}
+
+
+void KeyFrame::ToSE3(){
+    cv::Mat mat = GetPose();
+    Eigen::Map<Sophus::SE3d> se3(pose_ba_);
+
+    Sophus::SE3d ss;
+    Converter::toSE3(mat, ss);
+    se3 = ss;
+}
+void KeyFrame::FromSE3() {
+    Eigen::Map<Sophus::SE3d> se3(pose_ba_);
+
+    cv::Mat mat;
+    Sophus::SE3d ss = se3;
+    Converter::toCvMat(ss, mat);
+
+    SetPose(mat);
+
 }
 
 void KeyFrame::SetPose(const cv::Mat &Tcw_)

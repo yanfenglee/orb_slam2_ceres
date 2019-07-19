@@ -183,4 +183,18 @@ void Converter::toEigenQT(const cv::Mat &M, Eigen::Quaterniond& q, Eigen::Vector
     cv::cv2eigen(M.rowRange(0,3).col(3), t);
 }
 
+void Converter::toSE3(const cv::Mat& mat, Sophus::SE3d& out) {
+    Eigen::Quaterniond q;
+    Eigen::Vector3d t;
+    toEigenQT(mat, q, t);
+    out = Sophus::SE3d(q, t);
+}
+
+void Converter::toCvMat(const Sophus::SE3d& se3, cv::Mat& out){
+
+    out = cv::Mat::eye(4, 4, CV_32F);
+    toCvMat(se3.rotationMatrix()).copyTo(out.rowRange(0,3).colRange(0,3));
+    toCvMat(se3.translation()).copyTo(out.rowRange(0,3).col(3));
+}
+
 } //namespace ORB_SLAM

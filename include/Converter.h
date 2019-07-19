@@ -26,6 +26,7 @@
 #include<Eigen/Dense>
 #include"Thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
 #include"Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
+#include <sophus/se3.hpp>
 
 namespace ORB_SLAM2
 {
@@ -56,6 +57,9 @@ public:
     static void toCvMat(const Eigen::Quaterniond& q, cv::Mat &M);
     static cv::Mat toCvMat(const Eigen::Quaterniond& q, const Eigen::Vector3d& t);
     static void toEigenQT(const cv::Mat &M, Eigen::Quaterniond& q, Eigen::Vector3d& t);
+
+    static void toSE3(const cv::Mat& mat, Sophus::SE3d& out);
+    static void toCvMat(const Sophus::SE3d& se3, cv::Mat& out);
 };
 
 }// namespace ORB_SLAM

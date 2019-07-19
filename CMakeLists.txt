@@ -48,6 +48,11 @@ ${Pangolin_INCLUDE_DIRS}
 ${CERES_INCLUDE_DIRS}
 )
 
+
+# Sophus
+find_package( Sophus REQUIRED )
+include_directories( ${Sophus_INCLUDE_DIRS} )
+
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(${PROJECT_NAME} SHARED
@@ -80,7 +85,9 @@ ${Pangolin_LIBRARIES}
 ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.dylib
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.dylib
         ${EIGEN3_LIBS}
-        ${CERES_LIBRARIES})
+        ${CERES_LIBRARIES}
+        ${SOPHUS_LIBRARIES}
+        )
 
 # Build examples
 

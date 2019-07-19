@@ -63,11 +63,11 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
 void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap)
 {
-//#ifdef USE_CERES
-//    CeresOptimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
-//#else
-//    G2Optimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
-//#endif
+#ifdef USE_CERES
+    CeresOptimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
+#else
+    G2Optimizer::LocalBundleAdjustment(pKF,pbStopFlag,pMap);
+#endif
 }
 
 

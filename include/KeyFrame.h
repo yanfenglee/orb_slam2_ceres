@@ -120,6 +120,9 @@ public:
     void ToEigenPose();
     void FromEigenPose();
 
+    void ToSE3();
+    void FromSE3();
+
 
     // The following variables are accesed from only 1 thread or never change (no mutex needed).
 public:
@@ -195,6 +198,9 @@ public:
     // variables use for ceres optimize
     Eigen::Quaterniond mQ;
     Eigen::Vector3d mt;
+
+    // se3 store
+    double pose_ba_[7];
 
 
     // The following variables need to be accessed trough a mutex to be thread safe.
