@@ -438,7 +438,7 @@ namespace ORB_SLAM2 {
 
     void CeresOptimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap) {
 
-#if 0
+#if 1
 
         // Local KeyFrames: First Breath Search from Current Keyframe
         list<KeyFrame *> lLocalKeyFrames;
@@ -490,7 +490,7 @@ namespace ORB_SLAM2 {
         // setup ceres optimizer
 
         ceres::Problem problem;
-        ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
+        ceres::LocalParameterization *qlp = new LocalParameterizeSE3;
         ceres::Solver::Options options;
         options.max_num_iterations = 200;
         ceres::ParameterBlockOrdering *ordering = new ceres::ParameterBlockOrdering;
@@ -530,38 +530,34 @@ namespace ORB_SLAM2 {
                 if (pKF->isBad()) continue;
 
                 const cv::KeyPoint &kpUn = pKF->mvKeysUn[idx];
-                pKF->ToEigenPose();
+                pKF->ToSE3();
 
                 Eigen::Matrix<double, 2, 1> obs(kpUn.pt.x, kpUn.pt.y);
 
                 // calculate reproject error with huber loss
                 ceres::LossFunction *loss_function = new ceres::HuberLoss(sqrt(5.991));
 
-                ceres::CostFunction *cost_function = ReprojectionError::Create(obs);
+                ceres::CostFunction *cost_function = ReprojLieCostFunction::Create(obs);
 
-                problem.AddResidualBlock(cost_function, loss_function, pKF->mQ.coeffs().data(), pKF->mt.data(),
-                                         mp->mWPos.data());
+                problem.AddResidualBlock(cost_function, loss_function, pKF->pose_ba_, mp->mWPos.data());
 
-                problem.SetParameterization(pKF->mQ.coeffs().data(), qlp);
+                problem.SetParameterization(pKF->pose_ba_, qlp);
 
                 //set marginalize order
                 ordering->AddElementToGroup(mp->mWPos.data(), 0);
-                ordering->AddElementToGroup(pKF->mQ.coeffs().data(), 1);
-                ordering->AddElementToGroup(pKF->mt.data(), 1);
+                ordering->AddElementToGroup(pKF->pose_ba_, 1);
 
             }
         }
 
         if (startFrame != nullptr) {
-            problem.SetParameterBlockConstant(startFrame->mQ.coeffs().data());
-            problem.SetParameterBlockConstant(startFrame->mt.data());
+            problem.SetParameterBlockConstant(startFrame->pose_ba_);
         }
 
 
         // Set Fixed KeyFrame vertices
         for (auto &kf : lFixedCameras) {
-            problem.SetParameterBlockConstant(kf->mQ.coeffs().data());
-            problem.SetParameterBlockConstant(kf->mt.data());
+            problem.SetParameterBlockConstant(kf->pose_ba_);
         }
 
 
@@ -650,7 +646,7 @@ namespace ORB_SLAM2 {
 
         //Keyframes
         for (auto &kf : lLocalKeyFrames) {
-            kf->FromEigenPose();
+            kf->FromSE3();
         }
 
         //Points
