@@ -51,7 +51,7 @@ namespace ORB_SLAM2 {
                                            const bool bRobust) {
         vector<KeyFrame *> vpKFs = pMap->GetAllKeyFrames();
         vector<MapPoint *> vpMP = pMap->GetAllMapPoints();
-        //BundleAdjustment(vpKFs, vpMP, nIterations, pbStopFlag, nLoopKF, bRobust);
+        BundleAdjustment(vpKFs, vpMP, nIterations, pbStopFlag, nLoopKF, bRobust);
     }
 
 
@@ -62,7 +62,7 @@ namespace ORB_SLAM2 {
         long unsigned int maxKFid = 0;
 
         ceres::Problem problem;
-        ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
+        ceres::LocalParameterization *qlp = new LocalParameterizeSE3();
         ceres::Solver::Options options;
         options.max_num_iterations = 200;
         //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
@@ -94,8 +94,6 @@ namespace ORB_SLAM2 {
 
             pMP->mWPos = Converter::toVector3d(pMP->GetWorldPos());
 
-            // TODO set point vertex, set marginalize flag
-
             const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
             //SET EDGES
@@ -105,7 +103,7 @@ namespace ORB_SLAM2 {
                 if (pKF->isBad() || pKF->mnId > maxKFid)
                     continue;
 
-                pKF->ToEigenPose();
+                pKF->ToSE3();
 
                 const cv::KeyPoint &kpUn = pKF->mvKeysUn[mit->second];
                 Eigen::Vector2d p2d(kpUn.pt.x, kpUn.pt.y);
@@ -113,25 +111,21 @@ namespace ORB_SLAM2 {
                 // calculate reproject error with huber loss
                 ceres::LossFunction *loss_function = new ceres::HuberLoss(sqrt(5.991));
 
-                ceres::CostFunction *cost_function = ReprojectionError::Create(p2d);
+                ceres::CostFunction *cost_function = ReprojLieCostFunction::Create(p2d);
 
-                problem.AddResidualBlock(cost_function, loss_function, pKF->mQ.coeffs().data(), pKF->mt.data(),
-                                         pMP->mWPos.data());
+                problem.AddResidualBlock(cost_function, loss_function, pKF->pose_ba_, pMP->mWPos.data());
 
-                problem.SetParameterization(pKF->mQ.coeffs().data(), qlp);
+                problem.SetParameterization(pKF->pose_ba_, qlp);
 
                 //set marginalize order
                 ordering->AddElementToGroup(pMP->mWPos.data(), 0);
-                ordering->AddElementToGroup(pKF->mQ.coeffs().data(), 1);
-                ordering->AddElementToGroup(pKF->mt.data(), 1);
-
+                ordering->AddElementToGroup(pKF->pose_ba_, 1);
             }
         }
 
 
         if (startFrame != nullptr) {
-            problem.SetParameterBlockConstant(startFrame->mQ.coeffs().data());
-            problem.SetParameterBlockConstant(startFrame->mt.data());
+            problem.SetParameterBlockConstant(startFrame->pose_ba_);
         }
 
 
@@ -156,10 +150,11 @@ namespace ORB_SLAM2 {
                 continue;
 
             if (nLoopKF == 0) {
-                pKF->FromEigenPose();
+                pKF->FromSE3();
             } else {
-                pKF->mTcwGBA.create(4, 4, CV_32F);
-                Converter::toCvMat(pKF->mQ, pKF->mt).copyTo(pKF->mTcwGBA);
+                Eigen::Map<Sophus::SE3d> se3(pKF->pose_ba_);
+                Sophus::SE3d ss = se3;
+                Converter::toCvMat(ss, pKF->mTcwGBA);
                 pKF->mnBAGlobalForKF = nLoopKF;
             }
         }

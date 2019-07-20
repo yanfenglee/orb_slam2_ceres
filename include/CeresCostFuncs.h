@@ -185,7 +185,7 @@ namespace ORB_SLAM2 {
         bool operator()(const T* const pose_raw, const T* const point_raw, T* residuals) const {
 
             Eigen::Map<Sophus::SE3<T> const> const pose(pose_raw);
-            Eigen::Map<Eigen::Matrix<T, 3, 1>> const point(point_raw);
+            Eigen::Map<Eigen::Matrix<T, 3, 1> const> const point(point_raw);
 
             Eigen::Matrix<T, 3, 1> P = pose * point;
             P /= P[3];
@@ -194,6 +194,11 @@ namespace ORB_SLAM2 {
             residuals[1] = P[1]*T(fy)+T(cy) - T(observed_[1]);
 
             return true;
+        }
+
+        static ceres::CostFunction *Create(const Eigen::Vector2d &pt2d) {
+            return (new ceres::AutoDiffCostFunction<ReprojLieCostFunction, 2, 7, 3>(
+                    new ReprojLieCostFunction(pt2d)));
         }
 
     private:
