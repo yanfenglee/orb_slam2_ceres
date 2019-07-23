@@ -662,20 +662,29 @@ namespace ORB_SLAM2 {
     }
 
 
+    void addPosegraphResidual(VecSim3& vScw, const VecSim3& vNCScw, ceres::Problem& problem, int i, int j) {
+        const Sim3d Sji = vNCScw[j] * vNCScw[i].inverse();
+        problem.AddResidualBlock(Sim3CostFunction::createCost(Sji), nullptr, vScw[i].data(), vScw[j].data());
+    }
+
     void CeresOptimizer::OptimizeEssentialGraph(Map *pMap, KeyFrame *pLoopKF, KeyFrame *pCurKF,
                                                 const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
                                                 const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                                 const map<KeyFrame *, set<KeyFrame *> > &LoopConnections,
                                                 const bool &bFixScale) {
-#if 0
+#if 1
 
         const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
         const vector<MapPoint*> vpMPs = pMap->GetAllMapPoints();
 
         const unsigned int nMaxKFid = pMap->GetMaxKFid();
 
-        VecSim3 vScw(nMaxKFid+1);
+        VecSim3 vScw(nMaxKFid+1), vNCScw(nMaxKFid+1);
+
         VecSim3 vCorrectedSwc(nMaxKFid+1);
+
+        ceres::Problem problem;
+        ceres::LocalParameterization *local_parameterization = new ceres::AutoDiffLocalParameterization<Sim3AdderFunctor,7,7>();
 
 
         const int minFeat = 100;
@@ -686,42 +695,52 @@ namespace ORB_SLAM2 {
             KeyFrame* pKF = vpKFs[i];
             if(pKF->isBad())
                 continue;
-            g2o::VertexSim3Expmap* VSim3 = new g2o::VertexSim3Expmap();
 
             const int nIDi = pKF->mnId;
+
 
             auto it = CorrectedSim3.find(pKF);
 
             if(it!=CorrectedSim3.end())
             {
-                vScw[nIDi] = it->second;
-                VSim3->setEstimate(it->second);
+                //vScw[nIDi] = it->second;
+                Converter::toSim3(it->second, vScw[nIDi]);
+                //VSim3->setEstimate(it->second);
             }
             else
             {
                 Eigen::Matrix<double,3,3> Rcw = Converter::toMatrix3d(pKF->GetRotation());
                 Eigen::Matrix<double,3,1> tcw = Converter::toVector3d(pKF->GetTranslation());
-                g2o::Sim3 Siw(Rcw,tcw,1.0);
+                //g2o::Sim3 Siw(Rcw,tcw,1.0);
+                Sophus::Sim3d Siw(Eigen::Quaterniond(Rcw), tcw);
+                Siw.setScale(1.0);
+
                 vScw[nIDi] = Siw;
-                VSim3->setEstimate(Siw);
+                //VSim3->setEstimate(Siw);
             }
 
-            if(pKF==pLoopKF)
-                VSim3->setFixed(true);
 
-            VSim3->setId(nIDi);
-            VSim3->setMarginalized(false);
-            VSim3->_fix_scale = bFixScale;
+            auto nit = NonCorrectedSim3.find(pKF);
+            if (nit != NonCorrectedSim3.end()) {
+                Sim3d nsim;
+                Converter::toSim3(nit->second, nsim);
+                vNCScw[nIDi] = nsim;
+            } else {
+                vNCScw[nIDi] = vScw[nIDi];
+            }
 
-            optimizer.addVertex(VSim3);
 
-            vpVertices[nIDi]=VSim3;
+            problem.AddParameterBlock(vScw[nIDi].data(), 7, local_parameterization);
+
+            if (nIDi == pLoopKF->mnId)
+                problem.SetParameterBlockConstant(vScw[nIDi].data());
+
         }
 
 
         set<pair<long unsigned int,long unsigned int> > sInsertedEdges;
 
-        const Eigen::Matrix<double,7,7> matLambda = Eigen::Matrix<double,7,7>::Identity();
+        //const Eigen::Matrix<double,7,7> matLambda = Eigen::Matrix<double,7,7>::Identity();
 
         // Set Loop edges
         for(map<KeyFrame *, set<KeyFrame *> >::const_iterator mit = LoopConnections.begin(), mend=LoopConnections.end(); mit!=mend; mit++)
@@ -729,8 +748,6 @@ namespace ORB_SLAM2 {
             KeyFrame* pKF = mit->first;
             const long unsigned int nIDi = pKF->mnId;
             const set<KeyFrame*> &spConnections = mit->second;
-            const Sim3d Siw = vScw[nIDi];
-            const Sim3d Swi = Siw.inverse();
 
             for(set<KeyFrame*>::const_iterator sit=spConnections.begin(), send=spConnections.end(); sit!=send; sit++)
             {
@@ -738,18 +755,7 @@ namespace ORB_SLAM2 {
                 if((nIDi!=pCurKF->mnId || nIDj!=pLoopKF->mnId) && pKF->GetWeight(*sit)<minFeat)
                     continue;
 
-                const Sim3d Sjw = vScw[nIDj];
-                const Sim3d Sji = Sjw * Swi;
-
-//                g2o::EdgeSim3* e = new g2o::EdgeSim3();
-//                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDj)));
-//                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
-//                e->setMeasurement(Sji);
-//
-//                e->information() = matLambda;
-//
-//                optimizer.addEdge(e);
-// TODO add loop residuals
+                addPosegraphResidual(vScw, vNCScw, problem, nIDi, nIDj);
 
                 sInsertedEdges.insert(make_pair(min(nIDi,nIDj),max(nIDi,nIDj)));
             }
@@ -767,7 +773,8 @@ namespace ORB_SLAM2 {
             auto iti = NonCorrectedSim3.find(pKF);
 
             if(iti!=NonCorrectedSim3.end())
-                Swi = (iti->second).inverse();
+                //Swi = (iti->second).inverse();
+                Converter::toSim3((iti->second).inverse(), Swi);
             else
                 Swi = vScw[nIDi].inverse();
 
@@ -777,25 +784,7 @@ namespace ORB_SLAM2 {
             if(pParentKF)
             {
                 int nIDj = pParentKF->mnId;
-
-                g2o::Sim3 Sjw;
-
-                LoopClosing::KeyFrameAndPose::const_iterator itj = NonCorrectedSim3.find(pParentKF);
-
-                if(itj!=NonCorrectedSim3.end())
-                    Sjw = itj->second;
-                else
-                    Sjw = vScw[nIDj];
-
-                g2o::Sim3 Sji = Sjw * Swi;
-
-                g2o::EdgeSim3* e = new g2o::EdgeSim3();
-                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDj)));
-                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
-                e->setMeasurement(Sji);
-
-                e->information() = matLambda;
-                optimizer.addEdge(e);
+                addPosegraphResidual(vScw, vNCScw, problem, nIDi, nIDj);
             }
 
             // Loop edges
@@ -805,22 +794,9 @@ namespace ORB_SLAM2 {
                 KeyFrame* pLKF = *sit;
                 if(pLKF->mnId<pKF->mnId)
                 {
-                    g2o::Sim3 Slw;
+                    int nIDj = pLKF->mnId;
 
-                    LoopClosing::KeyFrameAndPose::const_iterator itl = NonCorrectedSim3.find(pLKF);
-
-                    if(itl!=NonCorrectedSim3.end())
-                        Slw = itl->second;
-                    else
-                        Slw = vScw[pLKF->mnId];
-
-                    g2o::Sim3 Sli = Slw * Swi;
-                    g2o::EdgeSim3* el = new g2o::EdgeSim3();
-                    el->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pLKF->mnId)));
-                    el->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
-                    el->setMeasurement(Sli);
-                    el->information() = matLambda;
-                    optimizer.addEdge(el);
+                    addPosegraphResidual(vScw, vNCScw, problem, nIDi, nIDj);
                 }
             }
 
@@ -836,31 +812,22 @@ namespace ORB_SLAM2 {
                         if(sInsertedEdges.count(make_pair(min(pKF->mnId,pKFn->mnId),max(pKF->mnId,pKFn->mnId))))
                             continue;
 
-                        g2o::Sim3 Snw;
-
-                        LoopClosing::KeyFrameAndPose::const_iterator itn = NonCorrectedSim3.find(pKFn);
-
-                        if(itn!=NonCorrectedSim3.end())
-                            Snw = itn->second;
-                        else
-                            Snw = vScw[pKFn->mnId];
-
-                        g2o::Sim3 Sni = Snw * Swi;
-
-                        g2o::EdgeSim3* en = new g2o::EdgeSim3();
-                        en->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pKFn->mnId)));
-                        en->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
-                        en->setMeasurement(Sni);
-                        en->information() = matLambda;
-                        optimizer.addEdge(en);
+                        int nIDj = pKFn->mnId;
+                        addPosegraphResidual(vScw, vNCScw, problem, nIDi, nIDj);
                     }
                 }
             }
         }
 
         // Optimize!
-        optimizer.initializeOptimization();
-        optimizer.optimize(20);
+        ceres::Solver::Options options;
+        options.max_num_iterations = 200;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+
+
 
         unique_lock<mutex> lock(pMap->mMutexMapUpdate);
 
@@ -871,10 +838,8 @@ namespace ORB_SLAM2 {
 
             const int nIDi = pKFi->mnId;
 
-            g2o::VertexSim3Expmap* VSim3 = static_cast<g2o::VertexSim3Expmap*>(optimizer.vertex(nIDi));
-            g2o::Sim3 CorrectedSiw =  VSim3->estimate();
-            vCorrectedSwc[nIDi]=CorrectedSiw.inverse();
-            Eigen::Matrix3d eigR = CorrectedSiw.rotation().toRotationMatrix();
+            Sim3d CorrectedSiw =  vScw[nIDi].inverse();
+            Eigen::Matrix3d eigR = CorrectedSiw.rotationMatrix();
             Eigen::Vector3d eigt = CorrectedSiw.translation();
             double s = CorrectedSiw.scale();
 
@@ -905,12 +870,12 @@ namespace ORB_SLAM2 {
             }
 
 
-            g2o::Sim3 Srw = vScw[nIDr];
-            g2o::Sim3 correctedSwr = vCorrectedSwc[nIDr];
+            Sim3d Srw = vScw[nIDr];
+            Sim3d correctedSwr = vCorrectedSwc[nIDr];
 
             cv::Mat P3Dw = pMP->GetWorldPos();
             Eigen::Matrix<double,3,1> eigP3Dw = Converter::toVector3d(P3Dw);
-            Eigen::Matrix<double,3,1> eigCorrectedP3Dw = correctedSwr.map(Srw.map(eigP3Dw));
+            Eigen::Matrix<double,3,1> eigCorrectedP3Dw = correctedSwr * Srw * eigP3Dw;
 
             cv::Mat cvCorrectedP3Dw = Converter::toCvMat(eigCorrectedP3Dw);
             pMP->SetWorldPos(cvCorrectedP3Dw);
@@ -925,7 +890,151 @@ namespace ORB_SLAM2 {
     CeresOptimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1,
                                  g2o::Sim3 &g2oS12,
                                  const float th2, const bool bFixScale) {
-        return 0;
+
+        ceres::Problem problem;
+        ceres::LocalParameterization *localp = new ceres::AutoDiffLocalParameterization<Sim3AdderFunctor,7,7>();
+
+        // Camera poses
+        const cv::Mat R1w = pKF1->GetRotation();
+        const cv::Mat t1w = pKF1->GetTranslation();
+        const cv::Mat R2w = pKF2->GetRotation();
+        const cv::Mat t2w = pKF2->GetTranslation();
+
+        Sim3d s12;
+        Converter::toSim3(g2oS12, s12);
+        problem.AddParameterBlock(s12.data(), 7, localp);
+
+
+        // Set MapPoint vertices
+        const int N = vpMatches1.size();
+        const vector<MapPoint*> vpMapPoints1 = pKF1->GetMapPointMatches();
+        vector<size_t> vnIndexEdge;
+
+        vnIndexEdge.reserve(2*N);
+
+        vector<pair<ceres::ResidualBlockId,ReprojSim3CostFunction*>> residuals12(2*N);
+        vector<pair<ceres::ResidualBlockId,ReprojSim3CostFunction*>> residuals21(2*N);
+
+        const float deltaHuber = sqrt(th2);
+
+        int nCorrespondences = 0;
+
+        for(int i=0; i<N; i++)
+        {
+            if(!vpMatches1[i])
+                continue;
+
+            MapPoint* pMP1 = vpMapPoints1[i];
+            MapPoint* pMP2 = vpMatches1[i];
+
+
+            if (!pMP1 || !pMP2)
+                continue;
+
+            const int i2 = pMP2->GetIndexInKeyFrame(pKF2);
+
+            if(pMP1->isBad() || pMP2->isBad() || i2 < 0)
+                continue;
+
+            nCorrespondences++;
+
+
+            cv::Mat P3D1c = R1w*pMP1->GetWorldPos()+t1w;
+            cv::Mat P3D2c = R2w*pMP2->GetWorldPos()+t2w;
+
+            Eigen::Vector3d p3d1, p3d2;
+            cv::cv2eigen(P3D1c, p3d1);
+            cv::cv2eigen(P3D2c, p3d2);
+
+            // Set edge x1 = S12*X2
+
+            const cv::KeyPoint &kpUn1 = pKF1->mvKeysUn[i];
+            Eigen::Matrix<double,2,1> obs1(kpUn1.pt.x, kpUn1.pt.y);
+
+            float invSigma = pKF2->mvInvLevelSigma2[kpUn1.octave];
+            Eigen::Matrix2d information = Eigen::Matrix2d::Identity()*invSigma;
+            ReprojSim3CostFunction* functor = new ReprojSim3CostFunction(obs1, p3d2, false, information);
+            ceres::CostFunction* cost = new ceres::AutoDiffCostFunction<ReprojSim3CostFunction, 2, 7>(functor);
+            ceres::ResidualBlockId rid = problem.AddResidualBlock(cost, new ceres::HuberLoss(deltaHuber), s12.data());
+
+            residuals21.push_back(make_pair(rid, functor));
+
+
+            // Set edge x2 = S21*X1
+
+            const cv::KeyPoint &kpUn2 = pKF2->mvKeysUn[i2];
+            Eigen::Matrix<double,2,1> obs2(kpUn2.pt.x, kpUn2.pt.y);
+
+            float invSigma2 = pKF2->mvInvLevelSigma2[kpUn2.octave];
+            Eigen::Matrix2d information2 = Eigen::Matrix2d::Identity()*invSigma2;
+            ReprojSim3CostFunction* functor2 = new ReprojSim3CostFunction(obs2, p3d1, true, information2);
+            ceres::CostFunction* cost2 = new ceres::AutoDiffCostFunction<ReprojSim3CostFunction, 2, 7>(functor2);
+            ceres::ResidualBlockId rid2 = problem.AddResidualBlock(cost2, new ceres::HuberLoss(deltaHuber), s12.data());
+
+            residuals12.push_back(make_pair(rid2, functor2));
+
+            vnIndexEdge.push_back(i);
+
+        }
+
+        // Optimize!
+        ceres::Solver::Options options;
+        options.max_num_iterations = 200;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+
+        // Check inliers
+        int nBad=0;
+        for(size_t i=0; i<residuals12.size();i++)
+        {
+            auto e12 = residuals12[i];
+            auto e21 = residuals21[i];
+
+            if(e12.second->chi2(s12)>th2 || e21.second->chi2(s12)>th2)
+            {
+                problem.RemoveResidualBlock(e12.first);
+                problem.RemoveResidualBlock(e21.first);
+
+                e21.second = nullptr;
+                e12.second = nullptr;
+
+                size_t idx = vnIndexEdge[i];
+                vpMatches1[idx] = nullptr;
+                nBad++;
+            }
+        }
+
+        if(nCorrespondences-nBad<10)
+            return 0;
+
+        // Optimize again only with inliers
+        Converter::toSim3(g2oS12, s12);
+        ceres::Solve(options, &problem, &summary);
+
+        int nIn = 0;
+        for(size_t i=0; i<residuals12.size();i++)
+        {
+            auto e12 = residuals12[i];
+            auto e21 = residuals21[i];
+
+            if (e12.second == nullptr || e21.second == nullptr)
+                continue;
+
+            if(e12.second->chi2(s12)>th2 || e21.second->chi2(s12)>th2)
+            {
+                size_t idx = vnIndexEdge[i];
+                vpMatches1[idx] = nullptr;
+            }
+            else
+                nIn++;
+        }
+
+        // Recover optimized Sim3
+        g2oS12 = g2o::Sim3(s12.rotationMatrix(), s12.translation(), s12.scale());
+
+        return nIn;
     }
 
 

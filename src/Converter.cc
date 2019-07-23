@@ -197,4 +197,9 @@ void Converter::toCvMat(const Sophus::SE3d& se3, cv::Mat& out){
     toCvMat(se3.translation()).copyTo(out.rowRange(0,3).col(3));
 }
 
+void Converter::toSim3(const g2o::Sim3& gsim3, Sophus::Sim3d& out) {
+    out = Sophus::Sim3d(gsim3.rotation(), gsim3.translation());
+    out.setScale(gsim3.scale());
+}
+
 } //namespace ORB_SLAM

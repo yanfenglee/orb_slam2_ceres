@@ -76,17 +76,17 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
                                        const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                        const map<KeyFrame *, set<KeyFrame *> > &LoopConnections, const bool &bFixScale)
 {
-//#ifdef USE_CERES
-//    CeresOptimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
-//                                       NonCorrectedSim3,
-//                                       CorrectedSim3,
-//                                       LoopConnections, bFixScale);
-//#else
-//    G2Optimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
-//                                           NonCorrectedSim3,
-//                                           CorrectedSim3,
-//                                           LoopConnections, bFixScale);
-//#endif
+#ifdef USE_CERES
+    CeresOptimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
+                                       NonCorrectedSim3,
+                                       CorrectedSim3,
+                                       LoopConnections, bFixScale);
+#else
+    G2Optimizer::OptimizeEssentialGraph(pMap,pLoopKF, pCurKF,
+                                           NonCorrectedSim3,
+                                           CorrectedSim3,
+                                           LoopConnections, bFixScale);
+#endif
 }
 
 int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1, g2o::Sim3 &g2oS12, const float th2, const bool bFixScale)

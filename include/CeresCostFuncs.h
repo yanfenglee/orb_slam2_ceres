@@ -229,14 +229,105 @@ namespace ORB_SLAM2 {
         virtual bool ComputeJacobian(double const* T_raw,
                                      double* jacobian_raw) const {
             Eigen::Map<SE3d const> T(T_raw);
-            Eigen::Map<Eigen::Matrix<double, 6, 7> > jacobian(jacobian_raw);
-            jacobian = T.internalJacobian().transpose();
+            Eigen::Map<Eigen::Matrix<double, 7, 6> , Eigen::RowMajor> jacobian(jacobian_raw);
+            jacobian = T.Dx_this_mul_exp_x_at_0();
             return true;
         }
 
         virtual int GlobalSize() const { return SE3d::num_parameters; }
 
         virtual int LocalSize() const { return SE3d::DoF; }
+    };
+
+
+    struct Sim3AdderFunctor {
+        template<typename T>
+        bool operator()(const T *T_raw, const T *delta_raw, T *x_plus_delta) const {
+            Eigen::Map<Sim3<T> const> const raw(T_raw);
+            Eigen::Map<Eigen::Matrix<T,7,1> const> const delta(delta_raw);
+            Eigen::Map<Sim3<T>> T_plus_delta(x_plus_delta);
+            T_plus_delta = raw * Sim3<T>::exp(delta);
+            return true;
+        }
+    };
+
+
+    class Sim3CostFunction
+    {
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+        Sim3CostFunction(const Sim3d &t_ab_measured)
+                : t_ab_measured_(t_ab_measured) {}
+
+        template <typename T>
+        bool operator()(const T *const a_ptr, const T *const b_ptr,
+                        T *residuals_ptr) const
+        {
+
+            Eigen::Map<Sophus::Sim3<T> const> const t_a(a_ptr);
+            Eigen::Map<Sophus::Sim3<T> const> const t_b(b_ptr);
+
+            Eigen::Map<Eigen::Matrix<T, 7, 1>> residuals(residuals_ptr);
+
+            residuals = (t_ab_measured_.template cast<T>().inverse() * t_a.inverse() * t_b).log();
+
+            return true;
+        }
+
+        static ceres::CostFunction* createCost(Sim3d Sji) {
+            Sim3CostFunction *functor = new Sim3CostFunction(Sji);
+
+            ceres::CostFunction *cost = new ceres::AutoDiffCostFunction<Sim3CostFunction,7,7,7>(functor);
+            return cost;
+        }
+
+    private:
+        // The measurement for the position of B relative to A in the A frame.
+        const Sim3d t_ab_measured_;
+        // The square root of the measurement information matrix.
+        //const Eigen::Matrix<double, 7, 7> sqrt_information_;
+    };
+
+    class ReprojSim3CostFunction {
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+        ReprojSim3CostFunction(const Eigen::Vector2d& observed, const Eigen::Vector3d& point, bool inverse, const Eigen::Matrix2d& info)
+        : observed_(observed), point_(point), inverse_(inverse), information_(info) {}
+
+        template <typename T>
+        bool operator()(const T* const pose_raw, T* residuals) const {
+
+            Eigen::Map<Sophus::Sim3<T> const> const pose(pose_raw);
+
+            Eigen::Matrix<T, 3, 1> P = inverse_ ? pose.inverse() * point_.template cast<T>() : pose * point_.template cast<T>();
+            P /= P[3];
+
+            residuals[0] = P[0]*T(fx)+T(cx) - T(observed_[0]);
+            residuals[1] = P[1]*T(fy)+T(cy) - T(observed_[1]);
+
+            return true;
+        }
+
+        static ceres::CostFunction *Create(const Eigen::Vector2d &pt2d, Eigen::Vector3d& point, bool inverse, const Eigen::Matrix2d& info) {
+            return (new ceres::AutoDiffCostFunction<ReprojSim3CostFunction, 2, 7>(
+                    new ReprojSim3CostFunction(pt2d, point, inverse, info)));
+        }
+
+
+        double chi2(const Sim3d& sim3) {
+            Eigen::Vector2d err;
+            operator()(sim3.data(), err.data());
+
+            return err.dot(information_*err);
+        }
+
+    private:
+        const Eigen::Vector2d observed_;
+        const Eigen::Vector3d point_;
+        const bool inverse_;
+        const Eigen::Matrix2d information_;
     };
 
 }
