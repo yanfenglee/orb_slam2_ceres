@@ -1,3 +1,6 @@
+# use ceres for optimizing
+This fork only changed for mono mode, should run without loop, yet the loop-closing not tested now
+
 # ORB-SLAM2 - For Mac
 This fork has been modified to be compatible on Mac systems. With required packages installed via Brew, this works out of the box for me.
 
