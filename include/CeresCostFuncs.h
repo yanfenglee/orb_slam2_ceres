@@ -229,8 +229,8 @@ namespace ORB_SLAM2 {
         virtual bool ComputeJacobian(double const* T_raw,
                                      double* jacobian_raw) const {
             Eigen::Map<SE3d const> T(T_raw);
-            Eigen::Map<Eigen::Matrix<double, 7, 6> , Eigen::RowMajor> jacobian(jacobian_raw);
-            jacobian = T.Dx_this_mul_exp_x_at_0();
+            Eigen::Map<Eigen::Matrix<double, 6, 7> , Eigen::RowMajor> jacobian(jacobian_raw);
+            jacobian = T.Dx_this_mul_exp_x_at_0().transpose();
             return true;
         }
 
