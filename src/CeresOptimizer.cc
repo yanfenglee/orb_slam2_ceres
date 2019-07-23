@@ -890,7 +890,7 @@ namespace ORB_SLAM2 {
     CeresOptimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1,
                                  g2o::Sim3 &g2oS12,
                                  const float th2, const bool bFixScale) {
-
+#if 1
         ceres::Problem problem;
         ceres::LocalParameterization *localp = new ceres::AutoDiffLocalParameterization<Sim3AdderFunctor,7,7>();
 
@@ -1006,6 +1006,9 @@ namespace ORB_SLAM2 {
             }
         }
 
+        std::cout << "outlier: " << nCorrespondences-nBad << std::endl;
+
+
         if(nCorrespondences-nBad<10)
             return 0;
 
@@ -1034,7 +1037,12 @@ namespace ORB_SLAM2 {
         // Recover optimized Sim3
         g2oS12 = g2o::Sim3(s12.rotationMatrix(), s12.translation(), s12.scale());
 
+        std::cout << "outlier: " << nBad << ", inlier:" << nIn << std::endl;
+
         return nIn;
+#else
+        return 0;
+#endif
     }
 
 

@@ -92,7 +92,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1, g2o::Sim3 &g2oS12, const float th2, const bool bFixScale)
 {
 #ifdef USE_CERES
-    //CeresOptimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
+    CeresOptimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
 #else
     //G2Optimizer::OptimizeSim3(pKF1, pKF2, vpMatches1, g2oS12, th2, bFixScale);
 #endif
