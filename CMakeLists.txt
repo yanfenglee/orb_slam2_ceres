@@ -77,7 +77,7 @@ src/Initializer.cc
 src/Viewer.cc
         src/CeresOptimizer.cc
         src/G2Optimizer.cc
-)
+        include/Settings.h)
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}

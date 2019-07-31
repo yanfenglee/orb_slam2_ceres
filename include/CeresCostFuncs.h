@@ -9,16 +9,11 @@
 #include <ceres/rotation.h>
 #include <Sophus/se3.hpp>
 #include <Sophus/sim3.hpp>
+#include "Settings.h"
 
 namespace ORB_SLAM2 {
 
     using namespace Sophus;
-
-    const double fx = 517.306408;
-    const double fy = 516.469215;
-    const double cx = 318.643040;
-    const double cy = 255.313989;
-
 
     class ReprojectionError {
     public:
@@ -43,8 +38,8 @@ namespace ORB_SLAM2 {
             predicted_p[1] /= predicted_p[2];
 
             // compute residuals
-            residuals[0] = predicted_p(0)*T(fx)+T(cx) - T(m_observed_p(0));
-            residuals[1] = predicted_p(1)*T(fy)+T(cy) - T(m_observed_p(1));
+            residuals[0] = predicted_p(0)*T(sfx)+T(scx) - T(m_observed_p(0));
+            residuals[1] = predicted_p(1)*T(sfy)+T(scy) - T(m_observed_p(1));
 
             return true;
         }
@@ -85,8 +80,8 @@ namespace ORB_SLAM2 {
             predicted_p[1] /= predicted_p[2];
 
             // compute residuals
-            residuals[0] = predicted_p(0)*T(fx)+T(cx) - T(m_observed_p(0));
-            residuals[1] = predicted_p(1)*T(fy)+T(cy) - T(m_observed_p(1));
+            residuals[0] = predicted_p(0)*T(sfx)+T(scx) - T(m_observed_p(0));
+            residuals[1] = predicted_p(1)*T(sfy)+T(scy) - T(m_observed_p(1));
 
             return true;
         }
@@ -127,8 +122,8 @@ namespace ORB_SLAM2 {
             predicted_p[1] /= predicted_p[2];
 
             // compute residuals
-            residuals[0] = predicted_p(0)*T(fx)+T(cx) - T(m_observed_p(0));
-            residuals[1] = predicted_p(1)*T(fy)+T(cy) - T(m_observed_p(1));
+            residuals[0] = predicted_p(0)*T(sfx)+T(scx) - T(m_observed_p(0));
+            residuals[1] = predicted_p(1)*T(sfy)+T(scy) - T(m_observed_p(1));
 
             return true;
         }
@@ -159,8 +154,8 @@ namespace ORB_SLAM2 {
             Eigen::Matrix<T, 3, 1> P = pose * point_.template cast<T>();
             P /= P[2];
 
-            residuals[0] = P[0]*T(fx)+T(cx) - T(observed_[0]);
-            residuals[1] = P[1]*T(fy)+T(cy) - T(observed_[1]);
+            residuals[0] = P[0]*T(sfx)+T(scx) - T(observed_[0]);
+            residuals[1] = P[1]*T(sfy)+T(scy) - T(observed_[1]);
 
             return true;
         }
@@ -190,8 +185,8 @@ namespace ORB_SLAM2 {
             Eigen::Matrix<T, 3, 1> P = pose * point;
             P /= P[3];
 
-            residuals[0] = P[0]*T(fx)+T(cx) - T(observed_[0]);
-            residuals[1] = P[1]*T(fy)+T(cy) - T(observed_[1]);
+            residuals[0] = P[0]*T(sfx)+T(scx) - T(observed_[0]);
+            residuals[1] = P[1]*T(sfy)+T(scy) - T(observed_[1]);
 
             return true;
         }
@@ -304,8 +299,8 @@ namespace ORB_SLAM2 {
             Eigen::Matrix<T, 3, 1> P = inverse_ ? pose.inverse() * point_.template cast<T>() : pose * point_.template cast<T>();
             P /= P[3];
 
-            residuals[0] = P[0]*T(fx)+T(cx) - T(observed_[0]);
-            residuals[1] = P[1]*T(fy)+T(cy) - T(observed_[1]);
+            residuals[0] = P[0]*T(sfx)+T(scx) - T(observed_[0]);
+            residuals[1] = P[1]*T(sfy)+T(scy) - T(observed_[1]);
 
             return true;
         }

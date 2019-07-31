@@ -27,9 +27,12 @@
 #include <iomanip>
 
 #include <unistd.h>
+#include "Settings.h"
 
 namespace ORB_SLAM2
 {
+
+    Settings settings;
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
                const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),mbActivateLocalizationMode(false),
@@ -58,6 +61,11 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
        cerr << "Failed to open settings file at: " << strSettingsFile << endl;
        exit(-1);
     }
+
+    settings.fx = fsSettings["Camera.fx"];
+    settings.fy = fsSettings["Camera.fy"];
+    settings.cx = fsSettings["Camera.cx"];
+    settings.cy = fsSettings["Camera.cy"];
 
 
     //Load ORB Vocabulary
