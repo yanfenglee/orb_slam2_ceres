@@ -183,140 +183,6 @@ namespace ORB_SLAM2 {
     }
 
     int CeresOptimizer::PoseOptimization(Frame *pFrame) {
-#if 0
-
-        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-
-        unique_lock<mutex> lock(MapPoint::mGlobalMutex);
-
-        for (int i = 0; i < pFrame->N; i++) {
-            pFrame->mvbOutlier[i] = false;
-        }
-
-
-        Eigen::Quaterniond q;
-        Eigen::Vector3d t;
-
-        cv::Mat rot = pFrame->mTcw.colRange(0, 3).rowRange(0, 3);
-        cv::Mat trans = pFrame->mTcw.rowRange(0, 3).col(3);
-
-
-        int inliers = 0;
-        int all = 0;
-
-
-        // 4 epoch optimize
-        for (int epoch = 0; epoch < 4; epoch++) {
-            ceres::Problem problem;
-
-            Converter::toQuaternion(rot, q);
-            cv::cv2eigen(trans, t);
-//
-//            std::cout << "------before optimize----------------" << std::endl;
-//            std::cout << t << std::endl;
-
-            ceres::LocalParameterization *qlp = new ceres::EigenQuaternionParameterization;
-
-
-            for (int i = 0; i < pFrame->N; i++) {
-                MapPoint *pMP = pFrame->mvpMapPoints[i];
-                if (!pFrame->mvbOutlier[i] && pMP) {
-
-                    Eigen::Vector3d p3d;
-                    Eigen::Vector2d p2d;
-                    cv::cv2eigen(pMP->GetWorldPos(), p3d);
-
-                    cv::KeyPoint &kp = pFrame->mvKeysUn[i];
-                    //p2d(0) = (kp.pt.x - pFrame->cx) * pFrame->invfx;
-                    //p2d(1) = (kp.pt.y - pFrame->cy) * pFrame->invfy;
-
-                    p2d(0) = kp.pt.x;
-                    p2d(1) = kp.pt.y;
-
-
-                    ceres::LossFunction *loss_function = epoch > 1 ? nullptr : new ceres::HuberLoss(sqrt(5.991));
-
-                    ceres::CostFunction *cost_function = ReprojectionOnlyPoseError::Create(p3d, p2d);
-
-                    problem.AddResidualBlock(cost_function, loss_function, q.coeffs().data(), t.data());
-
-                    problem.SetParameterization(q.coeffs().data(), qlp);
-
-                }
-            }
-
-
-            ceres::Solver::Options options;
-            options.max_num_iterations = 200;
-            //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-
-            ceres::Solver::Summary summary;
-            ceres::Solve(options, &problem, &summary);
-
-            //std::cout << summary.FullReport() << '\n';
-
-            inliers = 0;
-            all = 0;
-            for (int i = 0; i < pFrame->N; i++) {
-                MapPoint *pMP = pFrame->mvpMapPoints[i];
-                if (!pMP) {
-                    continue;
-                }
-
-
-                Eigen::Vector3d p3d;
-                Eigen::Vector2d p2d;
-                cv::cv2eigen(pMP->GetWorldPos(), p3d);
-
-                cv::KeyPoint &kp = pFrame->mvKeysUn[i];
-
-                p2d(0) = kp.pt.x;
-                p2d(1) = kp.pt.y;
-
-                ReprojectionOnlyPoseError err(p3d, p2d);
-                double residual[2];
-                err(q.coeffs().data(), t.data(), residual);
-
-
-                float invSigma2 = pFrame->mvInvLevelSigma2[kp.octave];
-                Eigen::Matrix2d information = Eigen::Matrix2d::Identity() * invSigma2;
-
-                Eigen::Vector2d vec(residual[0], residual[0]);
-                float chi2 = vec.dot(information * vec);
-
-                pFrame->mvbOutlier[i] = chi2 > 5.991;
-
-                inliers += pFrame->mvbOutlier[i] ? 0 : 1;
-                all += 1;
-            }
-        }
-
-        cv::Mat Rotation, Translate;
-        Converter::toCvMat(q, Rotation);
-        cv::eigen2cv(t, Translate);
-
-        cv::Mat pose = cv::Mat::eye(4, 4, pFrame->mTcw.type());
-
-        Rotation.copyTo(pose.rowRange(0, 3).colRange(0, 3));
-        Translate.copyTo(pose.rowRange(0, 3).col(3));
-
-
-//        std::cout << "---------before-------------" << std::endl;
-//        std::cout << "all: " << all << ", inliers: " << inliers << std::endl;
-//        std::cout << pFrame->mTcw << std::endl;
-
-        pFrame->SetPose(pose);
-
-//        std::cout << "---------after-------------" << std::endl;
-//        std::cout << pose << std::endl;
-//
-//        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-//
-//        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
-//        std::cout << "---------cost: " << ttrack << std::endl;
-
-        return inliers;
-#else
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
 
         unique_lock<mutex> lock(MapPoint::mGlobalMutex);
@@ -431,14 +297,11 @@ namespace ORB_SLAM2 {
 //        std::cout << "---------cost: " << ttrack << std::endl;
 
         return inliers;
-#endif
 
     }
 
 
     void CeresOptimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap) {
-
-#if 1
 
         // Local KeyFrames: First Breath Search from Current Keyframe
         list<KeyFrame *> lLocalKeyFrames;
@@ -657,8 +520,6 @@ namespace ORB_SLAM2 {
             mp->UpdateNormalAndDepth();
         }
 
-#endif
-
     }
 
 
@@ -672,7 +533,6 @@ namespace ORB_SLAM2 {
                                                 const LoopClosing::KeyFrameAndPose &CorrectedSim3,
                                                 const map<KeyFrame *, set<KeyFrame *> > &LoopConnections,
                                                 const bool &bFixScale) {
-#if 1
 
         const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
         const vector<MapPoint*> vpMPs = pMap->GetAllMapPoints();
@@ -882,15 +742,12 @@ namespace ORB_SLAM2 {
 
             pMP->UpdateNormalAndDepth();
         }
-#endif
-
     }
 
     int
     CeresOptimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1,
                                  g2o::Sim3 &g2oS12,
                                  const float th2, const bool bFixScale) {
-#if 1
         ceres::Problem problem;
         ceres::LocalParameterization *localp = new ceres::AutoDiffLocalParameterization<Sim3AdderFunctor,7,7>();
 
@@ -1040,9 +897,6 @@ namespace ORB_SLAM2 {
         std::cout << "outlier: " << nBad << ", inlier:" << nIn << std::endl;
 
         return nIn;
-#else
-        return 0;
-#endif
     }
 
 
