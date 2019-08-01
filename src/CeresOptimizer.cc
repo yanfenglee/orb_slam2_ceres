@@ -380,6 +380,7 @@ namespace ORB_SLAM2 {
                 maxKFid = kf->mnId;
         }
 
+        vector<ReprojLieCostFunction*> residuals;
 
         for (auto &mp : lLocalMapPoints) {
             const map<KeyFrame *, size_t> observations = mp->GetObservations();
@@ -395,16 +396,27 @@ namespace ORB_SLAM2 {
                 const cv::KeyPoint &kpUn = pKF->mvKeysUn[idx];
                 pKF->ToSE3();
 
+                double invsigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
+
                 Eigen::Matrix<double, 2, 1> obs(kpUn.pt.x, kpUn.pt.y);
 
                 // calculate reproject error with huber loss
                 ceres::LossFunction *loss_function = new ceres::HuberLoss(sqrt(5.991));
 
-                ceres::CostFunction *cost_function = ReprojLieCostFunction::Create(obs);
+                ReprojLieCostFunction* reproj = new ReprojLieCostFunction(obs);
+                reproj->kf_ = pKF;
+                reproj->mp_ = mp;
+                reproj->invSigma2_ = invsigma2;
 
-                problem.AddResidualBlock(cost_function, loss_function, pKF->pose_ba_, mp->mWPos.data());
+                ceres::CostFunction *cost_function = new ceres::AutoDiffCostFunction<ReprojLieCostFunction, 2, 7, 3>(reproj);
+
+                ceres::ResidualBlockId rid = problem.AddResidualBlock(cost_function, loss_function, pKF->pose_ba_, mp->mWPos.data());
 
                 problem.SetParameterization(pKF->pose_ba_, qlp);
+
+                reproj->rid_ = rid;
+
+                residuals.push_back(reproj);
 
                 //set marginalize order
                 ordering->AddElementToGroup(mp->mWPos.data(), 0);
@@ -444,66 +456,48 @@ namespace ORB_SLAM2 {
                 bDoMore = false;
 
         if (bDoMore) {
-//
-//            // Check inlier observations
-//            for(size_t i=0, iend=vpEdgesMono.size(); i<iend;i++)
-//            {
-//                g2o::EdgeSE3ProjectXYZ* e = vpEdgesMono[i];
-//                MapPoint* pMP = vpMapPointEdgeMono[i];
-//
-//                if(pMP->isBad())
-//                    continue;
-//
-//                if(e->chi2()>5.991 || !e->isDepthPositive())
-//                {
-//                    e->setLevel(1);
+
+            // optimize again without outliers
+//            vector<ReprojLieCostFunction*> invalid;
+//            for (auto r : residuals) {
+//                if (r->chi2() > 5.991 || !r->isDepthPositive()) {
+//                    problem.RemoveResidualBlock(r->rid_);
+//                    invalid.push_back(r);
+//                } else {
+//                    r->reset();
 //                }
-//
-//                e->setRobustKernel(0);
 //            }
 //
-//            // Optimize again without the outliers
+//            ceres::Solve(options, &problem, &summary);
 //
-//            optimizer.initializeOptimization(0);
-//            optimizer.optimize(10);
-
-// TODO optimize again without outliers
-
+//            for (auto a : invalid) {
+//                remove(residuals.begin(), residuals.end(), a);
+//            }
         }
-//
-//        vector<pair<KeyFrame*,MapPoint*> > vToErase;
-//        vToErase.reserve(vpEdgesMono.size()+vpEdgesStereo.size());
-//
-//        // Check inlier observations
-//        for(size_t i=0, iend=vpEdgesMono.size(); i<iend;i++)
-//        {
-//            g2o::EdgeSE3ProjectXYZ* e = vpEdgesMono[i];
-//            MapPoint* pMP = vpMapPointEdgeMono[i];
-//
-//            if(pMP->isBad())
-//                continue;
-//
-//            if(e->chi2()>5.991 || !e->isDepthPositive())
-//            {
-//                KeyFrame* pKFi = vpEdgeKFMono[i];
-//                vToErase.push_back(make_pair(pKFi,pMP));
-//            }
-//        }
-//
-//        // Get Map Mutex
-//        unique_lock<mutex> lock(pMap->mMutexMapUpdate);
-//
-//        if(!vToErase.empty())
-//        {
-//            for(size_t i=0;i<vToErase.size();i++)
-//            {
-//                KeyFrame* pKFi = vToErase[i].first;
-//                MapPoint* pMPi = vToErase[i].second;
-//                pKFi->EraseMapPointMatch(pMPi);
-//                pMPi->EraseObservation(pKFi);
-//            }
-//        }
-// TODO at the end, calculate chi2 error, erase outlier
+
+
+
+        //at the end, calculate chi2 error, erase outlier
+        vector<pair<KeyFrame*,MapPoint*> > vToErase;
+        for (auto r : residuals) {
+            if (r->chi2() > 5.991 || !r->isDepthPositive()) {
+                vToErase.push_back(make_pair(r->kf_,r->mp_));
+            }
+        }
+
+        // Get Map Mutex
+        unique_lock<mutex> lock(pMap->mMutexMapUpdate);
+
+        if(!vToErase.empty())
+        {
+            for(size_t i=0;i<vToErase.size();i++)
+            {
+                KeyFrame* pKFi = vToErase[i].first;
+                MapPoint* pMPi = vToErase[i].second;
+                pKFi->EraseMapPointMatch(pMPi);
+                pMPi->EraseObservation(pKFi);
+            }
+        }
 
         // Recover optimized data
 

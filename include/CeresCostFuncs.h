@@ -10,10 +10,14 @@
 #include <Sophus/se3.hpp>
 #include <Sophus/sim3.hpp>
 #include "Settings.h"
+#include "KeyFrame.h"
 
 namespace ORB_SLAM2 {
 
     using namespace Sophus;
+
+    class KeyFrame;
+    class MapPoint;
 
     class ReprojectionError {
     public:
@@ -183,7 +187,7 @@ namespace ORB_SLAM2 {
             Eigen::Map<Eigen::Matrix<T, 3, 1> const> const point(point_raw);
 
             Eigen::Matrix<T, 3, 1> P = pose * point;
-            P /= P[3];
+            P /= P[2];
 
             residuals[0] = P[0]*T(sfx)+T(scx) - T(observed_[0]);
             residuals[1] = P[1]*T(sfy)+T(scy) - T(observed_[1]);
@@ -195,6 +199,31 @@ namespace ORB_SLAM2 {
             return (new ceres::AutoDiffCostFunction<ReprojLieCostFunction, 2, 7, 3>(
                     new ReprojLieCostFunction(pt2d)));
         }
+
+        double chi2() {
+            double res[2];
+            operator()(kf_->pose_ba_, mp_->mWPos.data(),res);
+            return (res[0]*res[0]+res[1]*res[1])*invSigma2_;
+        }
+
+        bool isDepthPositive() {
+            Eigen::Map<Sophus::SE3<double> const> const pose(kf_->pose_ba_);
+            Eigen::Map<Eigen::Matrix<double, 3, 1> const> const point(mp_->mWPos.data());
+
+            Eigen::Matrix<double, 3, 1> P = pose * point;
+
+            return P[2] > 0.0;
+        }
+
+        void reset() {
+            kf_->ToSE3();
+            mp_->mWPos = Converter::toVector3d(mp_->GetWorldPos());
+        }
+
+        double invSigma2_;
+        KeyFrame* kf_;
+        MapPoint* mp_;
+        ceres::ResidualBlockId rid_;
 
     private:
         const Eigen::Vector2d observed_;
